@@ -88,7 +88,7 @@ webhook, so Cloudflare redeploys on its own.
 
 > To deploy from GitHub Actions instead, add `CLOUDFLARE_API_TOKEN` and
 > `CLOUDFLARE_ACCOUNT_ID` as repository secrets and append a
-> `cloudflare/wrangler-action@v3` step with `command: deploy` to `ci.yml`,
+> `cloudflare/wrangler-action@v4` step with `command: deploy` to `ci.yml`,
 > then disconnect the build in the Cloudflare dashboard so the two do not race.
 
 ## What this is not
