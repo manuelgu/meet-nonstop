@@ -50,6 +50,21 @@ async function load() {
   }
 }
 
+// OurAirports' municipality carries administrative baggage
+// ("Paris (Roissy-en-France, Val-d'Oise)", "London, Essex") and is sometimes
+// the suburb rather than the city ("Balice" for Krakow). Trim the baggage; the
+// airport name is always shown underneath to resolve whatever remains unclear.
+const LABEL_FIX = { ADB: 'Izmir', SAW: 'Istanbul', SCR: 'Salen' };
+function label(a) {
+  if (LABEL_FIX[a.iata]) return LABEL_FIX[a.iata];
+  const c = (a.city || '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .split(',')[0]
+    .replace(/\s+Island$/, '')
+    .trim();
+  return c || a.name;
+}
+
 // --------------------------------------------------------------------- geo
 function distanceKm(a, b) {
   const R = 6371, rad = Math.PI / 180;
@@ -117,7 +132,7 @@ function chip(r) {
     `${AIRPORTS[o].iata}: ${STATUS[r.statuses[i]]}, ${r.legs[i].toLocaleString()} km`)].join('\n');
   // OurAirports' municipality is occasionally the suburb rather than the city
   // people know (Balice for Krakow), so always show the airport name too.
-  li.append(el('span', 'nm', a.city || a.name));
+  li.append(el('span', 'nm', label(a)));
   li.append(el('span', 'apt', a.name));
   const sub = el('span', 'sub');
   sub.append(el('span', null, a.iata));
@@ -168,7 +183,7 @@ function render() {
   addFig(yearRound, 'served year-round from every origin');
   if (rows.length) {
     const fairest = rows.reduce((a, b) => (a.maxLeg <= b.maxLeg ? a : b));
-    addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${fairest.airport.city || fairest.airport.name})`);
+    addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${label(fairest.airport)})`);
   }
 
   // legend
@@ -197,7 +212,7 @@ function render() {
     for (const k of order) {
       const b = buckets.get(k);
       if (!b) continue;
-      b.sort((x, y) => (x.airport.city || x.airport.name).localeCompare(y.airport.city || y.airport.name));
+      b.sort((x, y) => label(x.airport).localeCompare(label(y.airport)));
       out.append(group(CONTINENTS[k] || k, b));
     }
   } else {
@@ -218,7 +233,7 @@ function renderOrigins() {
     const li = el('li', 'origin');
     const sw = el('span', 'swatch');
     sw.style.background = `var(--o${i + 1})`;
-    li.append(sw, el('span', 'code', a.iata), el('span', 'where', a.city || a.name));
+    li.append(sw, el('span', 'code', a.iata), el('span', 'where', label(a)));
     const x = el('button', null, '×');
     x.setAttribute('aria-label', `Remove ${a.iata}`);
     x.onclick = () => { state.origins.splice(i, 1); sync(); };
