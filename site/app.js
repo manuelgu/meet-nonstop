@@ -81,7 +81,9 @@ function neighbourMap(i) {
     const v = EDGES[k];
     m.set(v & 0xfffff, (v >>> 20) & 3);
   }
-  m.set(i, 0); // you are already there — a zero-distance leg is a real option
+  // Deliberately no self-edge: an origin is not a meeting point. Without one,
+  // an origin can never survive the intersection, because its own adjacency
+  // list does not contain itself.
   return m;
 }
 
@@ -102,7 +104,7 @@ function intersect(originIdxs) {
     }
     if (!ok) continue;
     const airport = AIRPORTS[dest];
-    const legs = originIdxs.map((o) => (o === dest ? 0 : distanceKm(AIRPORTS[o], airport)));
+    const legs = originIdxs.map((o) => distanceKm(AIRPORTS[o], airport));
     out.push({
       dest, airport, statuses, legs,
       maxLeg: Math.max(...legs),
