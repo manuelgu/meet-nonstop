@@ -51,11 +51,19 @@ async function load() {
 }
 
 // OurAirports' municipality carries administrative baggage
-// ("Paris (Roissy-en-France, Val-d'Oise)", "London, Essex") and is sometimes
-// the suburb rather than the city ("Balice" for Krakow). Trim the baggage; the
-// airport name is always shown underneath to resolve whatever remains unclear.
-const LABEL_FIX = { ADB: 'Izmir', SAW: 'Istanbul', SCR: 'Salen' };
-function label(a) {
+// ("Paris (Roissy-en-France, Val-d'Oise)", "London, Essex") and is sometimes a
+// suburb rather than the city people know ("Zaventem" for Brussels). Trim the
+// baggage, then override the cases trimming cannot reach.
+const LABEL_FIX = {
+  ADB: 'İzmir',      ATH: 'Athens',    BRU: 'Brussels',  BSL: 'Basel/Mulhouse',
+  CFU: 'Corfu',      CHQ: 'Chania',    EDI: 'Edinburgh', FLR: 'Florence',
+  FRA: 'Frankfurt',  KRK: 'Kraków',    LIN: 'Milan',     LYS: 'Lyon',
+  MPL: 'Montpellier',MRS: 'Marseille', MXP: 'Milan',     NAP: 'Naples',
+  OTP: 'Bucharest',  SAW: 'Istanbul',  SCR: 'Sälen',     SKP: 'Skopje',
+  TIA: 'Tirana',     TRN: 'Turin',     VCE: 'Venice',    ZAG: 'Zagreb',
+};
+
+function baseLabel(a) {
   if (LABEL_FIX[a.iata]) return LABEL_FIX[a.iata];
   const c = (a.city || '')
     .replace(/\s*\([^)]*\)/g, '')
@@ -63,6 +71,40 @@ function label(a) {
     .replace(/\s+Island$/, '')
     .trim();
   return c || a.name;
+}
+
+const bare = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** What distinguishes this airport from others serving the same city. */
+function distinguisher(a, base) {
+  let s = a.name
+    .replace(/\b(International|Regional|Municipal|National|Airport|Airfield|Aerodrome|Air Base)\b/gi, ' ')
+    .replace(/["']/g, ' ');
+  for (const w of base.split(/[\s/]+/)) {
+    // prefix match so an override of 'Milan' also strips 'Milano'
+    if (w.length > 2) s = s.replace(new RegExp('\\b' + escapeRe(w) + '\\w*', 'gi'), ' ');
+  }
+  s = s.replace(/\s+/g, ' ').replace(/^[\s\-–—,.]+|[\s\-–—,.]+$/g, '').trim();
+  return s || a.iata;
+}
+
+/** Label each row, disambiguating cities served by more than one airport. */
+function labelRows(rows) {
+  const counts = new Map();
+  for (const r of rows) {
+    const b = baseLabel(r.airport);
+    counts.set(b, (counts.get(b) ?? 0) + 1);
+  }
+  for (const r of rows) {
+    const b = baseLabel(r.airport);
+    const d = distinguisher(r.airport, b);
+    // Compare without diacritics so Turkish 'Istanbul Airport' is recognised as
+    // adding nothing to the base label rather than becoming 'Istanbul-Istanbul'.
+    const adds = bare(d) && bare(d) !== bare(b);
+    r.label = counts.get(b) > 1 && adds ? `${b}\u2013${d}` : b;
+  }
+  return rows;
 }
 
 // --------------------------------------------------------------------- geo
@@ -134,8 +176,8 @@ function chip(r) {
     `${AIRPORTS[o].iata}: ${STATUS[r.statuses[i]]}, ${r.legs[i].toLocaleString()} km`)].join('\n');
   // OurAirports' municipality is occasionally the suburb rather than the city
   // people know (Balice for Krakow), so always show the airport name too.
-  li.append(el('span', 'nm', label(a)));
-  li.append(el('span', 'apt', a.name));
+  li.append(el('span', 'nm', r.label));
+  li.append(el('span', 'apt', a.country));
   const sub = el('span', 'sub');
   sub.append(el('span', null, a.iata));
   sub.append(el('span', null, `${r.maxLeg.toLocaleString()} km max`));
@@ -168,7 +210,7 @@ function render() {
   $('hint').textContent = '';
   $('summary').hidden = false;
 
-  let rows = intersect(state.origins);
+  let rows = labelRows(intersect(state.origins));
   const yearRound = rows.filter((r) => r.yearRound).length;
   const total = rows.length;
   if (state.filter === 'year') rows = rows.filter((r) => r.yearRound);
@@ -185,7 +227,7 @@ function render() {
   addFig(yearRound, 'served year-round from every origin');
   if (rows.length) {
     const fairest = rows.reduce((a, b) => (a.maxLeg <= b.maxLeg ? a : b));
-    addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${label(fairest.airport)})`);
+    addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${fairest.label})`);
   }
 
   // explain the active sort where the buttons are, not in a footnote
@@ -222,7 +264,7 @@ function render() {
     for (const k of order) {
       const b = buckets.get(k);
       if (!b) continue;
-      b.sort((x, y) => label(x.airport).localeCompare(label(y.airport)));
+      b.sort((x, y) => x.label.localeCompare(y.label));
       out.append(group(CONTINENTS[k] || k, b));
     }
   } else {
@@ -243,7 +285,7 @@ function renderOrigins() {
     const li = el('li', 'origin');
     const sw = el('span', 'swatch');
     sw.style.background = `var(--o${i + 1})`;
-    li.append(sw, el('span', 'code', a.iata), el('span', 'where', label(a)));
+    li.append(sw, el('span', 'code', a.iata), el('span', 'where', baseLabel(a)));
     const x = el('button', null, '×');
     x.setAttribute('aria-label', `Remove ${a.iata}`);
     x.onclick = () => { state.origins.splice(i, 1); sync(); };
