@@ -2,6 +2,7 @@ import { loadAirports, type Airport } from './sources.ts';
 import { fetchWikitext, resolveTitles, iataForEntities } from './wiki.ts';
 import { parseDestinations, type Status } from './parse.ts';
 import { bestStatus, writeOutputs, type Edge } from './emit.ts';
+import { buildBasemap } from './basemap.ts';
 
 const argv = process.argv.slice(2);
 const flag = (name: string) => {
@@ -108,7 +109,10 @@ const recipRate = edgeCount ? reciprocal.size / edgeCount : 0;
 log(`${edgeCount} directed routes, ${(recipRate * 100).toFixed(1)}% confirmed by both endpoints`);
 log(`${dropped} destination links dropped (not an airport we track)`);
 
-// ------------------------------------------------------------------- 6. emit
+// --------------------------------------------------------------- 6. basemap
+const basemap = await buildBasemap(OUT, log);
+
+// ------------------------------------------------------------------- 7. emit
 await writeOutputs(OUT, airports, adj, reciprocal, {
   builtAt: new Date().toISOString(),
   airports: airports.length,
@@ -116,6 +120,7 @@ await writeOutputs(OUT, airports, adj, reciprocal, {
   routes: edgeCount,
   reciprocalRate: Number(recipRate.toFixed(4)),
   droppedLinks: dropped,
-  source: 'English Wikipedia airport articles (CC BY-SA 4.0); OurAirports (public domain)',
+  basemap,
+  source: 'English Wikipedia airport articles (CC BY-SA 4.0); OurAirports (public domain); Natural Earth (public domain)',
 });
 log('wrote data/airports.json, data/graph.bin, data/meta.json');

@@ -46,6 +46,15 @@
     <p class="legend" id="legend"></p>
   </section>
 
+  <section class="mapwrap" id="mapwrap" hidden>
+    <canvas id="map" role="img" aria-label="World map of the shared destinations. The same destinations are listed below in text form."></canvas>
+    <div class="mapctl">
+      <button type="button" id="mapfit" title="Zoom to fit every result">Fit</button>
+      <label class="mapall"><input type="checkbox" id="mapall"> Show all routes</label>
+    </div>
+    <p class="maphint">Drag to pan, scroll to zoom. Hover a dot for its legs; click to jump to it in the list.</p>
+  </section>
+
   <main id="out" aria-live="polite"></main>
 
   <section class="notes">
@@ -54,6 +63,7 @@
       <li><strong>Destinations, not schedules.</strong> A route marked seasonal has no dates attached, and a once-weekly summer charter looks the same here as a five-a-day trunk route. Check a real booking site before you commit to anything.</li>
       <li><strong>Nonstop, not direct.</strong> A &ldquo;direct&rdquo; flight can still touch down somewhere under the same flight number. Everything here is genuinely nonstop.</li>
       <li><strong>Community data.</strong> Routes come from the airline-and-destination tables on English Wikipedia, matched to airports through redirect resolution and Wikidata IATA codes. Large airports are well maintained; small ones are patchier. Routes confirmed by <em>both</em> endpoints' articles are marked as such.</li>
+      <li>The map draws each leg as a true great circle, which is why long routes bow north rather than running straight across. Country outlines are Natural Earth 110m, drawn from a 39&nbsp;KB file the page ships itself &mdash; there are no map tiles and no third-party requests.</li>
       <li><strong>Fairest</strong> sorts by the longest single leg anyone has to fly, so nobody eats the whole journey. <strong>Shortest total</strong> minimises combined distance, which is better for carbon and worse for whoever lives furthest out.</li>
     </ul>
   </section>
@@ -61,7 +71,7 @@
   <footer>
     <span id="meta">&nbsp;</span>
     <a href="https://github.com/manuelgu/meet-nonstop">Source on GitHub</a>
-    <span>Route data from <a href="https://en.wikipedia.org">Wikipedia</a> (CC&nbsp;BY-SA&nbsp;4.0) and <a href="https://ourairports.com">OurAirports</a> (public domain)</span>
+    <span>Routes from <a href="https://en.wikipedia.org">Wikipedia</a> (CC&nbsp;BY-SA&nbsp;4.0), airports from <a href="https://ourairports.com">OurAirports</a> and basemap from <a href="https://www.naturalearthdata.com">Natural Earth</a> (both public domain)</span>
   </footer>
 </div>
 <script type="module" src="./app.js"></script>

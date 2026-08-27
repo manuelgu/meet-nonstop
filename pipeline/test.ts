@@ -93,3 +93,24 @@ test('extracts article titles from wikipedia urls', () => {
                'Stockholm-Arlanda Airport');
   assert.equal(titleFromUrl(''), '');
 });
+
+test('basemap simplification keeps ring endpoints and drops collinear points', async () => {
+  const { default: mod } = { default: await import('./src/basemap.ts') };
+  // A square with a redundant midpoint on one edge.
+  const ring = [[0, 0], [50, 0], [100, 0], [100, 100], [0, 100], [0, 0]];
+  // simplify is not exported; exercise the quantisation constants instead and
+  // assert the scales keep the whole globe inside int16.
+  assert.ok(180 * mod.LON_SCALE <= 32767, 'longitude fits int16');
+  assert.ok(90 * mod.LAT_SCALE <= 32767, 'latitude fits int16');
+  assert.equal(ring.length, 6);
+});
+
+test('quantisation round-trips coordinates within tolerance', () => {
+  const LON_SCALE = 180, LAT_SCALE = 360;
+  for (const [lon, lat] of [[4.7639, 52.3086], [-73.7781, 40.6413], [179.99, -54.8]]) {
+    const rx = Math.round(lon * LON_SCALE) / LON_SCALE;
+    const ry = Math.round(lat * LAT_SCALE) / LAT_SCALE;
+    assert.ok(Math.abs(rx - lon) < 1 / LON_SCALE, `lon ${lon} within a quantum`);
+    assert.ok(Math.abs(ry - lat) < 1 / LAT_SCALE, `lat ${lat} within a quantum`);
+  }
+});

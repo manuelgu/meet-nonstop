@@ -45,6 +45,15 @@ Runs weekly in CI; nothing runs at request time.
    staleness signal for the dataset as a whole.
 6. **Emit** — `airports.json` plus `graph.bin`, a CSR adjacency structure.
 
+### The map
+
+Country outlines come from Natural Earth 110m, quantised to int16 and
+simplified in the pipeline to a 39 KB `basemap.bin`, drawn on canvas. No tiles,
+no API key, no third-party requests — which keeps the page self-contained and
+free to run. Legs are drawn as true great circles by interpolating along the
+geodesic and projecting each point, so a long route bows north instead of
+running straight across the projection.
+
 ### The site (`site/`)
 
 Dependency-free ES modules. No framework, no bundler — the build step is a file
@@ -104,6 +113,6 @@ webhook, so Cloudflare redeploys on its own.
 
 ## Licence
 
-Code is MIT. Route data derives from English Wikipedia (CC BY-SA 4.0) and
-OurAirports (public domain) — attribution is carried in the site footer, and
+Code is MIT. Route data derives from English Wikipedia (CC BY-SA 4.0),
+OurAirports (public domain) and Natural Earth (public domain) — attribution is carried in the site footer, and
 redistributing the built data means honouring CC BY-SA.

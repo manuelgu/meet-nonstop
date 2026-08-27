@@ -1,4 +1,5 @@
 // meet-nonstop — N-way nonstop route intersection, entirely client-side.
+import { createMap } from './map.js';
 
 const MAX_ORIGINS = 6;
 const CONTINENTS = { EU:'Europe', NA:'North America', SA:'South America',
@@ -11,6 +12,15 @@ let EDGES = null;       // Uint32Array, packed edges
 let byIata = new Map();
 
 const state = { origins: [], filter: 'all', sort: 'name' };
+let map = null, lastFitKey = '';
+
+function litChip(dest) {
+  document.querySelectorAll('.chip.lit').forEach((c) => c.classList.remove('lit'));
+  if (dest == null) return null;
+  const c = document.querySelector(`.chip[data-dest="${dest}"]`);
+  c?.classList.add('lit');
+  return c;
+}
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -171,6 +181,7 @@ function bars(statuses) {
 
 function chip(r) {
   const li = el('li', 'chip');
+  li.dataset.dest = String(r.dest);
   const a = r.airport;
   li.title = [`${a.name} (${a.iata}), ${a.country}`, ...state.origins.map((o, i) =>
     `${AIRPORTS[o].iata}: ${STATUS[r.statuses[i]]}, ${r.legs[i].toLocaleString()} km`)].join('\n');
@@ -246,8 +257,16 @@ function render() {
 
   if (!rows.length) {
     out.append(el('p', 'empty', 'No destinations are reachable nonstop from all of these airports.'));
+    $('mapwrap').hidden = true;
     return;
   }
+
+  // Refit only when the origins change; a filter or sort change should not
+  // yank the viewport out from under someone who has zoomed in.
+  const fitKey = state.origins.join(',');
+  $('mapwrap').hidden = false;
+  map?.setData(state.origins.map((i) => AIRPORTS[i]), rows, fitKey !== lastFitKey);
+  lastFitKey = fitKey;
 
   if (state.sort === 'name') {
     const buckets = new Map();
@@ -395,10 +414,35 @@ function initButtons() {
   }));
 }
 
+function initMap() {
+  map = createMap($('map'), {
+    onHover: (r) => litChip(r ? r.dest : null),
+    onSelect: (r) => {
+      const c = litChip(r.dest);
+      c?.scrollIntoView({ block: 'center', behavior:
+        matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    },
+  });
+  map.loadBasemap('./data/basemap.bin').catch((e) => {
+    console.warn('basemap unavailable:', e);
+    $('mapwrap').hidden = true;
+  });
+  $('mapfit').addEventListener('click', () => map.fit());
+  $('mapall').addEventListener('change', (e) => map.setShowAll(e.target.checked));
+  document.addEventListener('pointerover', (e) => {
+    const c = e.target.closest?.('.chip');
+    if (c) map.highlight(Number(c.dataset.dest));
+  });
+  document.addEventListener('pointerout', (e) => {
+    if (e.target.closest?.('.chip')) map.highlight(null);
+  });
+}
+
 try {
   await load();
   initSearch();
   initButtons();
+  initMap();
   fromHash();
   window.addEventListener('hashchange', () => { fromHash(); render(); });
   render();
