@@ -161,20 +161,25 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
 
     if (hover) {
       const [x, y] = project(hover.airport.lon, hover.airport.lat);
-      const lines = [hover.label,
+      const lines = [hover.label, `${hover.airport.country} \u00b7 ${hover.airport.iata}`,
         ...origins.map((o, i) => `${o.iata} ${hover.legs[i].toLocaleString()} km`)];
       ctx.font = '12px ui-sans-serif, system-ui, sans-serif';
       const w = Math.max(...lines.map((t) => ctx.measureText(t).width)) + 16;
-      const h = lines.length * 15 + 10;
+      const h = lines.length * 15 + 14;
       const bx = Math.min(Math.max(8, x + 12), W - w - 8);
       const by = Math.min(Math.max(8, y - h - 10), H - h - 8);
       ctx.fillStyle = theme.surface; ctx.strokeStyle = theme.border; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.roundRect(bx, by, w, h, 3); ctx.fill(); ctx.stroke();
       lines.forEach((t, i) => {
-        ctx.fillStyle = i === 0 ? theme.ink : theme.muted;
+        ctx.fillStyle = i === 0 ? theme.ink : i === 1 ? theme.faint : theme.muted;
         ctx.font = `${i === 0 ? '600 ' : ''}12px ui-sans-serif, system-ui, sans-serif`;
         ctx.fillText(t, bx + 8, by + 18 + i * 15);
       });
+      // hairline between the place and its legs
+      ctx.beginPath();
+      ctx.moveTo(bx + 8, by + 26 + 15);
+      ctx.lineTo(bx + w - 8, by + 26 + 15);
+      ctx.strokeStyle = theme.border; ctx.lineWidth = 1; ctx.stroke();
     }
   }
 
@@ -270,9 +275,15 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
       if (wasSingle && !moved) {
         const [x, y] = local(e);
         const h = pick(x, y);
-        if (h) {
-          // On touch a tap should also reveal the legs, since there is no hover.
-          if (e.pointerType === 'touch') { hover = h; onHover?.(h); requestDraw(); }
+        if (e.pointerType === 'touch') {
+          // Touch has no hover, so a tap is how you read a dot. Jumping the
+          // page to the list entry would throw away the map position you just
+          // panned to, so tapping only opens the tooltip; tapping empty space
+          // closes it again.
+          hover = h;
+          onHover?.(h);
+          requestDraw();
+        } else if (h) {
           onSelect?.(h);
         }
       }

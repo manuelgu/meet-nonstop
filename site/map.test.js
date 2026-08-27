@@ -12,7 +12,7 @@ function stubEnv() {
   const ctx = new Proxy({
     arc(x, y, r) { arcs.push([x, y, r]); },
     measureText: () => ({ width: 40 }),
-  }, { get: (t, k) => (k in t ? t[k] : () => {}), set: () => true });
+  }, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
 
   const canvas = {
     width: W, height: H, style: {},
@@ -25,7 +25,12 @@ function stubEnv() {
 
   globalThis.requestAnimationFrame = (fn) => { fn(); return 1; };
   globalThis.cancelAnimationFrame = () => {};
-  globalThis.ResizeObserver = class { observe() {} };
+  // The real one fires on observe, which is what gives the map its measured
+  // size; a no-op stub left W and H at zero and every projection meaningless.
+  globalThis.ResizeObserver = class {
+    constructor(cb) { this.cb = cb; }
+    observe() { this.cb(); }
+  };
   globalThis.MutationObserver = class { observe() {} };
   globalThis.window = { matchMedia: () => ({ addEventListener() {} }), devicePixelRatio: 1 };
   globalThis.document = { documentElement: {} };
@@ -47,13 +52,10 @@ function dotSpread(arcs) {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
 
-async function mounted() {
+async function mounted(cbs = {}) {
   const env = stubEnv();
   const { createMap } = await import('./map.js?' + Math.random());
-  const map = createMap(env.canvas, {});
-  // Give it a measured size the way ResizeObserver would.
-  map.fit();
-  env.canvas.width = W; env.canvas.height = H;
+  const map = createMap(env.canvas, cbs);   // ResizeObserver stub sizes it
   return { ...env, map };
 }
 
@@ -129,4 +131,89 @@ test('zoom keeps the point under the cursor fixed', async () => {
   const moved = arcs.slice(-4)[0].slice(0, 2);
   assert.ok(Math.hypot(moved[0] - anchor[0], moved[1] - anchor[1]) < 0.5,
     'the anchored point does not drift');
+});
+
+/** Screen position of the first destination dot in the latest frame. */
+function firstDot(arcs) { return arcs.slice(-4)[0].slice(0, 2); }
+
+test('tapping a dot on touch opens its tooltip and does not jump the list', async () => {
+  const selected = [], hovered = [];
+  const { canvas, arcs, map } = await mounted({
+    onSelect: (r) => selected.push(r.label),
+    onHover: (r) => hovered.push(r ? r.label : null),
+  });
+  map.setData([AMS, ARN], rows, true);
+  const [x, y] = firstDot(arcs);
+
+  canvas.dispatch('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+  canvas.dispatch('pointerup', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+
+  assert.deepEqual(selected, [], 'touch must not trigger the scroll-to-list callback');
+  assert.deepEqual(hovered, ['Paris'], 'touch reveals the destination instead');
+});
+
+test('tapping empty space on touch dismisses the tooltip', async () => {
+  const hovered = [];
+  const { canvas, arcs, map } = await mounted({ onHover: (r) => hovered.push(r ? r.label : null) });
+  map.setData([AMS, ARN], rows, true);          // fit, so the dots land on-canvas
+  const drawn = arcs.slice(-4).map((a) => [a[0], a[1]]);
+  const [x, y] = drawn[0];
+
+  // Find a point comfortably clear of every drawn marker.
+  let empty = null;
+  for (let gx = 20; gx < W && !empty; gx += 20) {
+    for (let gy = 20; gy < H; gy += 20) {
+      if (drawn.every(([dx, dy]) => Math.hypot(dx - gx, dy - gy) > 60)) { empty = [gx, gy]; break; }
+    }
+  }
+  assert.ok(empty, 'the canvas has some empty space to tap');
+
+  canvas.dispatch('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+  canvas.dispatch('pointerup', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+  canvas.dispatch('pointerdown', { pointerId: 2, pointerType: 'touch', clientX: empty[0], clientY: empty[1] });
+  canvas.dispatch('pointerup', { pointerId: 2, pointerType: 'touch', clientX: empty[0], clientY: empty[1] });
+
+  assert.equal(hovered.length, 2, `expected open then close, got ${JSON.stringify(hovered)}`);
+  assert.ok(hovered[0], 'first tap opened a tooltip');
+  assert.equal(hovered[1], null, 'the second tap clears it');
+});
+
+test('clicking a dot with a mouse still jumps to the list entry', async () => {
+  const selected = [];
+  const { canvas, arcs, map } = await mounted({ onSelect: (r) => selected.push(r.label) });
+  map.setData([AMS, ARN], rows, true);
+  const [x, y] = firstDot(arcs);
+  canvas.dispatch('pointerdown', { pointerId: 1, pointerType: 'mouse', clientX: x, clientY: y });
+  canvas.dispatch('pointerup', { pointerId: 1, pointerType: 'mouse', clientX: x, clientY: y });
+  assert.deepEqual(selected, ['Paris']);
+});
+
+test('a drag is not treated as a tap', async () => {
+  const selected = [], hovered = [];
+  const { canvas, arcs, map } = await mounted({
+    onSelect: (r) => selected.push(r.label),
+    onHover: (r) => hovered.push(r ? r.label : null),
+  });
+  map.setData([AMS, ARN], rows, false);
+  const [x, y] = firstDot(arcs);
+  canvas.dispatch('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+  canvas.dispatch('pointermove', { pointerId: 1, pointerType: 'touch', clientX: x + 60, clientY: y + 30 });
+  canvas.dispatch('pointerup', { pointerId: 1, pointerType: 'touch', clientX: x + 60, clientY: y + 30 });
+  assert.deepEqual(selected, []);
+  assert.deepEqual(hovered, [], 'panning must not open a tooltip');
+});
+
+test('the tooltip names the country', async () => {
+  const texts = [];
+  const env = stubEnv();
+  const { createMap } = await import('./map.js?' + Math.random());
+  // Capture text drawn into the tooltip.
+  const realCtx = env.canvas.getContext();
+  realCtx.fillText = (t) => texts.push(t);
+  const map = createMap(env.canvas, {});
+  map.setData([AMS, ARN], rows, true);
+  map.highlight(1);
+  assert.ok(texts.includes('Paris'), 'label present');
+  assert.ok(texts.some((t) => t.startsWith('FR')), `country line present, got ${JSON.stringify(texts)}`);
+  assert.ok(texts.some((t) => t.startsWith('AMS ')), 'leg lines present');
 });
