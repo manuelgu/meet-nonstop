@@ -1,0 +1,6 @@
+name = "meet-nonstop"
+compatibility_date = "2026-08-01"
+
+# Static-assets-only Worker: no `main` script, Cloudflare serves ./dist directly.
+[assets]
+directory = "./dist"

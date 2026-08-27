@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meet Nonstop</title>
+<meta name="description" content="Pick two or more airports and see every destination all of you can reach without a layover.">
+<link rel="stylesheet" href="./styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#9992;</text></svg>">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Nonstop route overlap</p>
+    <h1>Where can we <em>all</em> fly without a layover?</h1>
+    <p class="lede">Add the airports everyone is flying from. You get every destination each of you can reach nonstop &mdash; and how far each person has to travel to get there.</p>
+  </header>
+
+  <section class="picker" aria-labelledby="picker-h">
+    <h2 id="picker-h" class="sr-only">Choose origin airports</h2>
+    <ul class="origins" id="origins"></ul>
+    <div class="combo">
+      <input id="search" type="text" autocomplete="off" role="combobox"
+             aria-expanded="false" aria-controls="results" aria-autocomplete="list"
+             placeholder="Add an airport &mdash; try AMS, Arlanda, or Lisbon">
+      <ul class="results" id="results" role="listbox" hidden></ul>
+    </div>
+    <p class="hint" id="hint">Loading route data&hellip;</p>
+  </section>
+
+  <section class="summary" id="summary" hidden>
+    <div class="figures" id="figures"></div>
+    <div class="bar">
+      <div class="filters" role="group" aria-label="Filter">
+        <button class="f" data-f="all" aria-pressed="true">All</button>
+        <button class="f" data-f="year" aria-pressed="false">Year-round only</button>
+      </div>
+      <div class="filters" role="group" aria-label="Sort">
+        <button class="s" data-s="name" aria-pressed="true">A&ndash;Z</button>
+        <button class="s" data-s="fair" aria-pressed="false">Fairest</button>
+        <button class="s" data-s="total" aria-pressed="false">Shortest total</button>
+      </div>
+    </div>
+    <p class="legend" id="legend"></p>
+  </section>
+
+  <main id="out" aria-live="polite"></main>
+
+  <section class="notes">
+    <h2>What this is and isn't</h2>
+    <ul>
+      <li><strong>Destinations, not schedules.</strong> A route marked seasonal has no dates attached, and a once-weekly summer charter looks the same here as a five-a-day trunk route. Check a real booking site before you commit to anything.</li>
+      <li><strong>Nonstop, not direct.</strong> A &ldquo;direct&rdquo; flight can still touch down somewhere under the same flight number. Everything here is genuinely nonstop.</li>
+      <li><strong>Community data.</strong> Routes come from the airline-and-destination tables on English Wikipedia, matched to airports through redirect resolution and Wikidata IATA codes. Large airports are well maintained; small ones are patchier. Routes confirmed by <em>both</em> endpoints' articles are marked as such.</li>
+      <li><strong>Fairest</strong> sorts by the longest single leg anyone has to fly, so nobody eats the whole journey. <strong>Shortest total</strong> minimises combined distance, which is better for carbon and worse for whoever lives furthest out.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span id="meta">&nbsp;</span>
+    <a href="https://github.com/manuelgu/meet-nonstop">Source on GitHub</a>
+    <span>Route data from <a href="https://en.wikipedia.org">Wikipedia</a> (CC&nbsp;BY-SA&nbsp;4.0) and <a href="https://ourairports.com">OurAirports</a> (public domain)</span>
+  </footer>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

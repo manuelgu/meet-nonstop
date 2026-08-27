@@ -1,0 +1,50 @@
+name: Refresh route data
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays, 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Rebuild route graph from Wikipedia
+        run: node pipeline/src/index.ts
+
+      - name: Commit if the data changed
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No route changes this week."
+          else
+            git commit -m "chore(data): weekly route refresh"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A GITHUB_TOKEN push does not trigger other workflows, so deploy here.
+      - name: Build site
+        if: steps.commit.outputs.changed == 'true'
+        run: node scripts/build.js
+
+      - name: Deploy to Cloudflare Workers
+        if: steps.commit.outputs.changed == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

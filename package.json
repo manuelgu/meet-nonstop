@@ -1,0 +1,21 @@
+{
+  "name": "meet-nonstop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Find airports reachable nonstop from every one of several origins.",
+  "scripts": {
+    "pipeline": "node pipeline/src/index.ts",
+    "pipeline:sample": "node pipeline/src/index.ts --max-airports 250",
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js && npx wrangler dev",
+    "deploy": "node scripts/build.js && npx wrangler deploy",
+    "test": "node --test pipeline/test.ts"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
