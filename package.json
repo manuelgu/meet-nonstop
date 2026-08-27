@@ -10,7 +10,7 @@
     "build": "node scripts/build.js",
     "dev": "node scripts/build.js && npx wrangler dev",
     "deploy": "node scripts/build.js && npx wrangler deploy",
-    "test": "node --test pipeline/test.ts"
+    "test": "node --test pipeline/test.ts site/map.test.js"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

@@ -40,6 +40,16 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
   let origins = [], rows = [], showAll = false;
   let view = { x: 0.5, y: 0.35, s: 600 };
   let hover = null, dpr = 1, W = 0, H = 0, needsFit = false;
+  let frame = 0;
+
+  // Pointer and wheel events fire far faster than the display refreshes.
+  // Coalesce them so at most one draw happens per frame.
+  function requestDraw() {
+    if (frame) return;
+    frame = 1;   // mark pending *before* scheduling, so a synchronous
+                 // rAF callback cannot leave the flag stuck set afterwards
+    requestAnimationFrame(() => { frame = 0; draw(); });
+  }
   let theme = {};
 
   function readTheme() {
@@ -104,8 +114,7 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     ctx.strokeStyle = theme.border; ctx.lineWidth = 0.7; ctx.stroke();
   }
 
-  function drawArc(from, to, color, alpha, width) {
-    const pts = greatCircle(from, to);
+  function drawArc(pts, color, alpha, width) {
     ctx.beginPath();
     let prevWx = null, started = false;
     for (const [lon, lat] of pts) {
@@ -137,11 +146,11 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
 
     if (showAll && !hover) {
       for (const r of rows) {
-        origins.forEach((o, i) => drawArc(o, r.airport, theme.origin[i], 0.1, 1));
+        for (let i = 0; i < origins.length; i++) drawArc(r.arcs[i], theme.origin[i], 0.1, 1);
       }
     }
     if (hover) {
-      origins.forEach((o, i) => drawArc(o, hover.airport, theme.origin[i], 0.85, 2));
+      for (let i = 0; i < origins.length; i++) drawArc(hover.arcs[i], theme.origin[i], 0.85, 2);
     }
 
     for (const r of rows) {
@@ -171,7 +180,7 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
 
   // -------------------------------------------------------------- interaction
   function pick(px, py) {
-    let best = null, bestD = 12 * 12;
+    let best = null, bestD = 14 * 14;
     for (const r of rows) {
       const [x, y] = project(r.airport.lon, r.airport.lat);
       const d = (x - px) ** 2 + (y - py) ** 2;
@@ -180,52 +189,119 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     return best;
   }
 
-  let dragging = false, moved = false, lastX = 0, lastY = 0;
+  const clampScale = (v) => Math.max(90, Math.min(v, 60000));
+
+  /** Scale by k while keeping the world point under (px, py) fixed. */
+  function zoomAt(px, py, k) {
+    const wx = (px - W / 2) / view.s + view.x;
+    const wy = (py - H / 2) / view.s + view.y;
+    view.s = clampScale(view.s * k);
+    view.x = wx - (px - W / 2) / view.s;
+    view.y = wy - (py - H / 2) / view.s;
+  }
+
+  // Every active pointer, so one finger pans and two pinch.
+  const pointers = new Map();
+  let gesture = null, moved = false;
+  const rect = () => canvas.getBoundingClientRect();
+  const local = (e) => { const r = rect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  function pinchState() {
+    const [a, b] = [...pointers.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+
   canvas.addEventListener('pointerdown', (e) => {
-    dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY;
+    const [x, y] = local(e);
+    pointers.set(e.pointerId, { x, y });
     canvas.setPointerCapture(e.pointerId);
+    moved = false;
+    gesture = pointers.size >= 2 ? pinchState() : { x, y };
+    if (hover && pointers.size >= 2) { hover = null; onHover?.(null); requestDraw(); }
   });
+
   canvas.addEventListener('pointermove', (e) => {
-    const r = canvas.getBoundingClientRect();
-    if (dragging) {
-      const dx = e.clientX - lastX, dy = e.clientY - lastY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
-      view.x -= dx / view.s; view.y -= dy / view.s;
-      lastX = e.clientX; lastY = e.clientY;
-      draw();
-      return;
+    const [x, y] = local(e);
+
+    if (pointers.has(e.pointerId)) {
+      pointers.set(e.pointerId, { x, y });
+
+      if (pointers.size >= 2) {
+        const now = pinchState();
+        if (gesture && gesture.d > 0) {
+          zoomAt(now.cx, now.cy, now.d / gesture.d);
+          view.x -= (now.cx - gesture.cx) / view.s;   // two-finger pan
+          view.y -= (now.cy - gesture.cy) / view.s;
+        }
+        gesture = now;
+        moved = true;
+        requestDraw();
+        return;
+      }
+
+      if (gesture) {
+        const dx = x - gesture.x, dy = y - gesture.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+        view.x -= dx / view.s; view.y -= dy / view.s;
+        gesture = { x, y };
+        requestDraw();
+        return;
+      }
     }
-    const h = pick(e.clientX - r.left, e.clientY - r.top);
+
+    // Hover is a mouse affordance; touch has no hover state to speak of.
+    if (e.pointerType === 'touch') return;
+    const h = pick(x, y);
     if (h !== hover) {
       hover = h;
       canvas.style.cursor = h ? 'pointer' : 'grab';
       onHover?.(h);
-      draw();
+      requestDraw();
     }
   });
-  const endDrag = (e) => {
-    if (dragging && !moved) {
-      const r = canvas.getBoundingClientRect();
-      const h = pick(e.clientX - r.left, e.clientY - r.top);
-      if (h) onSelect?.(h);
+
+  function release(e) {
+    const wasSingle = pointers.size === 1;
+    pointers.delete(e.pointerId);
+    if (pointers.size >= 2) gesture = pinchState();
+    else if (pointers.size === 1) { const p = [...pointers.values()][0]; gesture = { x: p.x, y: p.y }; }
+    else {
+      gesture = null;
+      if (wasSingle && !moved) {
+        const [x, y] = local(e);
+        const h = pick(x, y);
+        if (h) {
+          // On touch a tap should also reveal the legs, since there is no hover.
+          if (e.pointerType === 'touch') { hover = h; onHover?.(h); requestDraw(); }
+          onSelect?.(h);
+        }
+      }
     }
-    dragging = false;
-  };
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', () => { dragging = false; });
-  canvas.addEventListener('pointerleave', () => {
-    if (hover) { hover = null; onHover?.(null); draw(); }
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType !== 'touch' && hover) { hover = null; onHover?.(null); requestDraw(); }
   });
+
+  canvas.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    const [x, y] = local(e);
+    zoomAt(x, y, e.shiftKey ? 1 / 1.8 : 1.8);
+    requestDraw();
+  });
+
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const r = canvas.getBoundingClientRect();
-    const px = e.clientX - r.left, py = e.clientY - r.top;
-    const wx = (px - W / 2) / view.s + view.x, wy = (py - H / 2) / view.s + view.y;
-    const k = Math.exp(-e.deltaY * 0.0015);
-    view.s = Math.max(90, Math.min(view.s * k, 60000));
-    view.x = wx - (px - W / 2) / view.s;
-    view.y = wy - (py - H / 2) / view.s;
-    draw();
+    const [x, y] = local(e);
+    // deltaY arrives in pixels, lines or pages depending on the device; and a
+    // macOS trackpad pinch arrives as ctrl+wheel. Normalise before scaling, and
+    // clamp so one coarse notch cannot jump several zoom levels.
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? H : 1;
+    const d = Math.max(-120, Math.min(120, e.deltaY * unit));
+    zoomAt(x, y, Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0022)));
+    requestDraw();
   }, { passive: false });
 
   new ResizeObserver(resize).observe(canvas);
@@ -254,12 +330,15 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     },
     setData(nextOrigins, nextRows, refit = true) {
       origins = nextOrigins; rows = nextRows; hover = null;
+      // Geodesics depend only on the endpoints, so compute them once here
+      // rather than on every pan and zoom.
+      for (const r of rows) r.arcs = origins.map((o) => greatCircle(o, r.airport));
       if (refit) { needsFit = true; fit(); } else draw();
     },
-    setShowAll(v) { showAll = v; draw(); },
+    setShowAll(v) { showAll = v; requestDraw(); },
     highlight(destOrNull) {
       hover = destOrNull ? rows.find((r) => r.dest === destOrNull) ?? null : null;
-      draw();
+      requestDraw();
     },
     refreshTheme() { readTheme(); draw(); },
     fit,

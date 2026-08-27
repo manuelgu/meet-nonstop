@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
-      - name: Test parser and graph packing
-        run: node --test pipeline/test.ts
+      - name: Test parser, graph and map interaction and graph packing
+        run: node --test pipeline/test.ts site/map.test.js
       - name: Build site
         run: node scripts/build.js

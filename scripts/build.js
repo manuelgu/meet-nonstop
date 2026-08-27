@@ -7,7 +7,10 @@ const dist = new URL('dist/', root);
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-await cp(new URL('site/', root), dist, { recursive: true });
+await cp(new URL('site/', root), dist, {
+  recursive: true,
+  filter: (src) => !src.endsWith('.test.js'),   // tests are not page assets
+});
 
 try {
   await stat(new URL('data/graph.bin', root));
