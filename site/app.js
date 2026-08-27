@@ -188,6 +188,14 @@ function render() {
     addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${label(fairest.airport)})`);
   }
 
+  // explain the active sort where the buttons are, not in a footnote
+  const SORT_HINT = {
+    name: '<b>A\u2013Z</b> groups every shared destination by region.',
+    fair: '<b>Fairest</b> puts the destination with the shortest <em>longest</em> leg first, so no one person flies far more than the others.',
+    total: '<b>Shortest total</b> puts the smallest combined distance first. Cheaper and lower-carbon overall, but it can leave whoever lives furthest out flying most of it.',
+  };
+  $('sorthint').innerHTML = SORT_HINT[state.sort];
+
   // legend
   const leg = $('legend');
   leg.textContent = 'Each bar is one origin, in the order you added them: ';

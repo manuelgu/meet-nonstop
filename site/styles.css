@@ -90,6 +90,8 @@ h1 em{font-style:normal;color:var(--o1)}
 .f:hover,.s:hover{color:var(--ink);border-color:var(--faint)}
 .f[aria-pressed="true"],.s[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .legend{margin:0;color:var(--muted);font-size:13px}
+.sorthint{margin:0;color:var(--ink-2);font-size:14px;max-width:70ch}
+.sorthint b{font-weight:600;color:var(--ink)}
 
 /* ---------------- results ---------------- */
 #out{display:flex;flex-direction:column;gap:clamp(22px,3vw,34px)}

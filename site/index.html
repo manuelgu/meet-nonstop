@@ -37,11 +37,12 @@
         <button class="f" data-f="year" aria-pressed="false">Year-round only</button>
       </div>
       <div class="filters" role="group" aria-label="Sort">
-        <button class="s" data-s="name" aria-pressed="true">A&ndash;Z</button>
-        <button class="s" data-s="fair" aria-pressed="false">Fairest</button>
-        <button class="s" data-s="total" aria-pressed="false">Shortest total</button>
+        <button class="s" data-s="name" aria-pressed="true" title="Group by region, alphabetically">A&ndash;Z</button>
+        <button class="s" data-s="fair" aria-pressed="false" title="Rank so the longest leg anyone flies is as short as possible">Fairest</button>
+        <button class="s" data-s="total" aria-pressed="false" title="Rank by smallest combined distance across everyone">Shortest total</button>
       </div>
     </div>
+    <p class="sorthint" id="sorthint"></p>
     <p class="legend" id="legend"></p>
   </section>
 
