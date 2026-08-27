@@ -225,10 +225,6 @@ function render() {
   };
   addFig(total, 'shared nonstop destinations');
   addFig(yearRound, 'served year-round from every origin');
-  if (rows.length) {
-    const fairest = rows.reduce((a, b) => (a.maxLeg <= b.maxLeg ? a : b));
-    addFig(`${fairest.maxLeg.toLocaleString()}`, `km — shortest possible longest leg (${fairest.label})`);
-  }
 
   // explain the active sort where the buttons are, not in a footnote
   const SORT_HINT = {
