@@ -112,13 +112,15 @@ function bars(statuses) {
 
 function chip(r) {
   const li = el('li', 'chip');
-  li.title = state.origins
-    .map((o, i) => `${AIRPORTS[o].iata}: ${STATUS[r.statuses[i]]}, ${r.legs[i].toLocaleString()} km`)
-    .join('\n');
-  const nm = el('span', 'nm', r.airport.city || r.airport.name);
-  li.append(nm);
+  const a = r.airport;
+  li.title = [`${a.name} (${a.iata}), ${a.country}`, ...state.origins.map((o, i) =>
+    `${AIRPORTS[o].iata}: ${STATUS[r.statuses[i]]}, ${r.legs[i].toLocaleString()} km`)].join('\n');
+  // OurAirports' municipality is occasionally the suburb rather than the city
+  // people know (Balice for Krakow), so always show the airport name too.
+  li.append(el('span', 'nm', a.city || a.name));
+  li.append(el('span', 'apt', a.name));
   const sub = el('span', 'sub');
-  sub.append(el('span', null, r.airport.iata));
+  sub.append(el('span', null, a.iata));
   sub.append(el('span', null, `${r.maxLeg.toLocaleString()} km max`));
   li.append(sub, bars(r.statuses));
   return li;
