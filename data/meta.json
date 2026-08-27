@@ -1,9 +1,9 @@
 {
-  "builtAt": "2026-08-27T18:10:24.987Z",
+  "builtAt": "2026-08-27T19:25:22.925Z",
   "airports": 4094,
-  "articlesWithTable": 3493,
-  "routes": 53428,
+  "articlesWithTable": 3492,
+  "routes": 53429,
   "reciprocalRate": 0.8517,
-  "droppedLinks": 2534,
+  "droppedLinks": 2531,
   "source": "English Wikipedia airport articles (CC BY-SA 4.0); OurAirports (public domain)"
 }
