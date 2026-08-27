@@ -1,6 +1,12 @@
+# Data is content-addressed by the build and safe to hold briefly.
 /data/*
   Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+# app.js and map.js are one ES module graph and must never be served from
+# different builds, so both revalidate rather than sitting in a cache window.
 /app.js
-  Cache-Control: public, max-age=600
+  Cache-Control: public, max-age=0, must-revalidate
+/map.js
+  Cache-Control: public, max-age=0, must-revalidate
 /styles.css
-  Cache-Control: public, max-age=600
+  Cache-Control: public, max-age=0, must-revalidate
