@@ -67,12 +67,29 @@ fast. Delete that directory to force a cold rebuild.
 
 ## Deployment
 
-Pushes to `main` deploy to Cloudflare Workers via `.github/workflows/deploy.yml`.
-`.github/workflows/refresh-data.yml` rebuilds the route graph every Monday,
-commits it only if something changed, and redeploys.
+Cloudflare **Workers Builds** is connected to this repository through
+Cloudflare's GitHub App, so every push to `main` builds and deploys itself.
+No Cloudflare credentials are stored in GitHub.
 
-Two repository secrets are required: `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`. See the setup section below.
+| Setting | Value |
+| --- | --- |
+| Build command | `node scripts/build.js` |
+| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` |
+| Node version | from `.node-version` |
+
+`.github/workflows/ci.yml` runs the tests and a build on every push and pull
+request — it needs no secrets, and it is a signal rather than a gate, since
+Cloudflare builds independently.
+
+`.github/workflows/refresh-data.yml` rebuilds the route graph every Monday and
+commits `data/` only when something actually changed. That push fires GitHub's
+webhook, so Cloudflare redeploys on its own.
+
+> To deploy from GitHub Actions instead, add `CLOUDFLARE_API_TOKEN` and
+> `CLOUDFLARE_ACCOUNT_ID` as repository secrets and append a
+> `cloudflare/wrangler-action@v3` step with `command: deploy` to `ci.yml`,
+> then disconnect the build in the Cloudflare dashboard so the two do not race.
 
 ## What this is not
 

@@ -1,0 +1,22 @@
+name: CI
+
+# Cloudflare Workers Builds deploys on push to main via its GitHub App,
+# so this workflow only has to prove the tree is sound. No secrets needed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Test parser and graph packing
+        run: node --test pipeline/test.ts
+      - name: Build site
+        run: node scripts/build.js
