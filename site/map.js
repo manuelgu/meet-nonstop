@@ -34,7 +34,9 @@ function greatCircle(a, b) {
   return out;
 }
 
-export function createMap(canvas, { onHover, onSelect } = {}) {
+const MIN_SCALE = 90, MAX_SCALE = 60000;
+
+export function createMap(canvas, { onHover, onSelect, onViewChange } = {}) {
   const ctx = canvas.getContext('2d');
   let rings = null, offsets = null, coords = null;
   let origins = [], rows = [], showAll = false;
@@ -92,6 +94,7 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     const h = Math.max(y1 - y0, 1e-4) * (1 + pad * 2);
     view.s = Math.max(120, Math.min(W / w, H / h, 40000));
     view.x = (x0 + x1) / 2; view.y = (y0 + y1) / 2;
+    notifyView();
     draw();
   }
 
@@ -194,7 +197,16 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     return best;
   }
 
-  const clampScale = (v) => Math.max(90, Math.min(v, 60000));
+  const clampScale = (v) => Math.max(MIN_SCALE, Math.min(v, MAX_SCALE));
+
+  /** Tell the host whether either zoom limit has been reached. */
+  function notifyView() {
+    onViewChange?.({
+      atMin: view.s <= MIN_SCALE + 1e-6,
+      atMax: view.s >= MAX_SCALE - 1e-6,
+      scale: view.s,
+    });
+  }
 
   /** Scale by k while keeping the world point under (px, py) fixed. */
   function zoomAt(px, py, k) {
@@ -203,6 +215,7 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
     view.s = clampScale(view.s * k);
     view.x = wx - (px - W / 2) / view.s;
     view.y = wy - (py - H / 2) / view.s;
+    notifyView();
   }
 
   // Every active pointer, so one finger pans and two pinch.
@@ -347,6 +360,8 @@ export function createMap(canvas, { onHover, onSelect } = {}) {
       if (refit) { needsFit = true; fit(); } else draw();
     },
     setShowAll(v) { showAll = v; requestDraw(); },
+    /** Zoom about the centre of the viewport, for the +/- buttons. */
+    zoomBy(k) { zoomAt(W / 2, H / 2, k); requestDraw(); },
     highlight(destOrNull) {
       hover = destOrNull ? rows.find((r) => r.dest === destOrNull) ?? null : null;
       requestDraw();

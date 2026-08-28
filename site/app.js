@@ -416,6 +416,10 @@ function initButtons() {
 
 function initMap() {
   map = createMap($('map'), {
+    onViewChange: ({ atMin, atMax }) => {
+      $('zoomin').disabled = atMax;
+      $('zoomout').disabled = atMin;
+    },
     onHover: (r) => litChip(r ? r.dest : null),
     onSelect: (r) => {
       const c = litChip(r.dest);
@@ -428,6 +432,8 @@ function initMap() {
     $('mapwrap').hidden = true;
   });
   $('mapfit').addEventListener('click', () => map.fit());
+  $('zoomin').addEventListener('click', () => map.zoomBy(1.7));
+  $('zoomout').addEventListener('click', () => map.zoomBy(1 / 1.7));
   $('mapall').addEventListener('change', (e) => map.setShowAll(e.target.checked));
   document.addEventListener('pointerover', (e) => {
     const c = e.target.closest?.('.chip');

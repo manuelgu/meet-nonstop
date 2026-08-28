@@ -217,3 +217,40 @@ test('the tooltip names the country', async () => {
   assert.ok(texts.some((t) => t.startsWith('FR')), `country line present, got ${JSON.stringify(texts)}`);
   assert.ok(texts.some((t) => t.startsWith('AMS ')), 'leg lines present');
 });
+
+test('the zoom buttons scale about the centre of the viewport', async () => {
+  const { arcs, map } = await mounted();
+  map.setData([AMS, ARN], rows, true);
+  const before = dotSpread(arcs);
+
+  map.zoomBy(1.7);
+  const zoomedIn = dotSpread(arcs);
+  assert.ok(Math.abs(zoomedIn / before - 1.7) < 0.02,
+    `zoom in should scale by 1.7, got ${(zoomedIn / before).toFixed(3)}`);
+
+  map.zoomBy(1 / 1.7);
+  assert.ok(Math.abs(dotSpread(arcs) - before) < 0.01, 'zooming back out returns to the start');
+});
+
+test('zoom buttons report when a limit is reached', async () => {
+  const states = [];
+  const { map } = await mounted({ onViewChange: (s) => states.push(s) });
+  map.setData([AMS, ARN], rows, true);
+
+  for (let i = 0; i < 40; i++) map.zoomBy(2);
+  assert.equal(states.at(-1).atMax, true, 'reports when zoomed all the way in');
+  assert.equal(states.at(-1).atMin, false);
+
+  for (let i = 0; i < 80; i++) map.zoomBy(0.5);
+  assert.equal(states.at(-1).atMin, true, 'reports when zoomed all the way out');
+  assert.equal(states.at(-1).atMax, false);
+});
+
+test('wheel and pinch also report view changes, so the buttons stay in sync', async () => {
+  const states = [];
+  const { canvas, map } = await mounted({ onViewChange: (s) => states.push(s) });
+  map.setData([AMS, ARN], rows, true);
+  const n = states.length;
+  canvas.dispatch('wheel', { deltaY: -60, deltaMode: 0, clientX: 400, clientY: 200 });
+  assert.ok(states.length > n, 'a wheel zoom notifies the host');
+});
