@@ -1,9 +1,14 @@
 {
-  "builtAt": "2026-08-27T19:25:22.925Z",
+  "builtAt": "2026-08-31T10:45:55.059Z",
   "airports": 4094,
   "articlesWithTable": 3492,
-  "routes": 53429,
-  "reciprocalRate": 0.8517,
-  "droppedLinks": 2531,
-  "source": "English Wikipedia airport articles (CC BY-SA 4.0); OurAirports (public domain)"
+  "routes": 53458,
+  "reciprocalRate": 0.8525,
+  "droppedLinks": 2486,
+  "basemap": {
+    "rings": 288,
+    "points": 9754,
+    "bytes": 40188
+  },
+  "source": "English Wikipedia airport articles (CC BY-SA 4.0); OurAirports (public domain); Natural Earth (public domain)"
 }
