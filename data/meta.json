@@ -1,10 +1,10 @@
 {
-  "builtAt": "2026-09-07T09:14:16.878Z",
+  "builtAt": "2026-09-14T09:46:39.069Z",
   "airports": 4095,
-  "articlesWithTable": 3492,
-  "routes": 53475,
+  "articlesWithTable": 3486,
+  "routes": 53485,
   "reciprocalRate": 0.8525,
-  "droppedLinks": 2486,
+  "droppedLinks": 2407,
   "basemap": {
     "rings": 288,
     "points": 9754,
